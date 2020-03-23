@@ -1,4 +1,4 @@
-# tf-pbt
+# pbt-light
 Framework for fast prototyping of Population-Based-Training methods. Implemented using Tensorflow 2.1.0 and tf_agents 0.4.0
 ## Using Docker (Tested on Ubuntu 18.04 LTS)
 ### Install Docker (quick and easy)
