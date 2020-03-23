@@ -1,0 +1,4 @@
+# required on top of packages in docker container "tensorflow/tensorflow:2.1.0-gpu-py3"
+pandas==1.0.2
+tf-agents
+gym
