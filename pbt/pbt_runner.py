@@ -57,13 +57,13 @@ class PBTRunner(object):
         # run the collect drivers to fill replay buffer of each model
         for i, member in enumerate(self.population.members):
             member.train_summary_writer.set_as_default()
-            with tf.compat.v2.summary.record_if(
-                    lambda: tf.math.equal(member.agent.episode_counter % self.summary_interval, 0)
+            with tf.compat.v2.summary.record_if(lambda: tf.math.equal(
+                    member.step_metrics[FP.IDX_ENV_STEPS].result().numpy() % self.summary_interval, 0)
             ):
-                while member.agent.step_counter < num_environment_steps:
+                while member.step_metrics[FP.IDX_ENV_STEPS].result().numpy() < num_environment_steps:
                     collect_time = 0
                     train_time = 0
-                    timed_at_step = member.agent.step_counter.numpy()
+                    timed_at_step = member.step_metrics[FP.IDX_ENV_STEPS].result().numpy()
 
                     # Collect
                     start_time = time.time()
@@ -82,16 +82,14 @@ class PBTRunner(object):
                         train_metric.tf_summaries(
                             train_step=member.agent.step_counter.numpy(), step_metrics=member.step_metrics)
 
-                    # Manually update custom custom step counters
-                    member.agent.step_counter.assign_add(member.agent.num_epochs)
-                    member.agent.episode_counter.assign_add(1)
                     # LOGGING
                     if member.agent.episode_counter % self.log_interval == 0:
-                        print(f'Training agent {i} in epoch {self._epoch_counter}, '
-                              f'Current episode: {member.agent.episode_counter.numpy()}')
-                        print(f'step = {member.agent.step_counter.numpy():.2f}, loss = {total_loss:.2f}')
-                        steps_per_sec = (member.agent.step_counter.numpy() - timed_at_step) / (
-                                    collect_time + train_time)
+                        print(f'Training agent {i} in epoch {self._epoch_counter}')
+                        print(f'step = '
+                              f'{member.step_metrics[FP.IDX_ENV_STEPS].result().numpy():.2f}, '
+                              f'loss = {total_loss:.2f}')
+                        steps_per_sec = (member.step_metrics[FP.IDX_ENV_STEPS].result().numpy()
+                                         - timed_at_step) / (collect_time + train_time)
                         print(f'steps/sec = {steps_per_sec:.2f}')
                         print(f'collect_time = {collect_time:.2f}, train_time = {train_time:.2f}')
 
@@ -147,13 +145,13 @@ class PBTRunner(object):
             if ckpt == 'train':
                 return common.Checkpointer(ckpt_dir=ckpt_dir,
                                            agent=member.agent,
-                                           global_step=member.agent.step_counter,
+                                           global_step=member.step_metrics[FP.IDX_ENV_STEPS],
                                            metrics=metric_utils.MetricsGroup(
                                                member.step_metrics + member.train_metrics, 'train_metrics'))
             elif ckpt == 'policy':
                 return common.Checkpointer(ckpt_dir=os.path.join(ckpt_dir, 'policy'),
                                            policy=member.agent.policy,
-                                           global_step=member.agent.step_counter)
+                                           global_step=member.step_metrics[FP.IDX_ENV_STEPS])
             else:
                 raise ValueError
 
@@ -173,30 +171,20 @@ class PBTRunner(object):
     def run_pbt(self,
                 root_dir,
                 num_epochs,
-                num_env_steps_per_epoch=30,
-                train_checkpoint_interval=50,
-                policy_checkpoint_interval=50,
-                summary_interval=30,
-                log_interval=10):
+                num_env_steps_per_epoch,
+                train_checkpoint_interval=500,
+                policy_checkpoint_interval=500,
+                summary_interval=50,
+                log_interval=50):
         """
         Args:
              root_dir: Where /train and /eval will be created that contain Summaries
              num_epochs: number of training epochs
              num_env_steps_per_epoch: steps taken in environment per epoch
-             train_checkpoint_interval:
-             policy_checkpoint_interval:
-             summary_interval:
-             log_interval:
-
-        Note that XYZ_interval = number of training episodes [of which a single epoch can have many].
-        A training episode consists of (collect_episodes * env_steps_per_collect_episode) many transistions.
-        However, in the case of the ppo, only 25 (as per default) of the collect_episodes are used for training.
-        So we only count 25 collect_episodes per training_episode.
-
-        More specifically, each epoch runs while
-            (training_episodes * 'collect_episodes_per_iteration' * steps_iter) < num_env_steps_per_epoch
-        where `collect_episodes_per_iteration` is, in the case of the ppo set to 25 as per default,
-        and steps_iter refer to the number of steps taken in each collect_episode.
+             train_checkpoint_interval: number of env steps after which train_checkpoint is created
+             policy_checkpoint_interval:  number of env steps after which policy_checkpoint is created
+             summary_interval:  number of env steps after which summaries are written for train and eval
+             log_interval: number of env steps after which current train results are logged to console
         """
         # Init lazy attrs
         self.global_step = tf.compat.v1.train.get_or_create_global_step()

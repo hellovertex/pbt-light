@@ -6,7 +6,7 @@ WORKDIR /
 
 # COPY the current directory contents into the container at /app
 COPY pbt /pbt/
-COPY requirements.txt /
+COPY requirements_docker.txt /
 COPY README.md /
 
 RUN pip install --upgrade pip && \

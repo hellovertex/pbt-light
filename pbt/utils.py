@@ -32,7 +32,7 @@ class FP(object):
     }
     # Indices of train_metrics
     INDEX_NUM_EPISODES_METRIC = 0
-    INDEX_ENV_STEPS_METRIC = 1
+    IDX_ENV_STEPS = 1
     INDEX_AVG_RETURN_METRIC = 0
 
 

@@ -21,5 +21,5 @@ docker build -t pbt:latest .
 # Run container (with attached port 6006 for tensorboard)
 docker run -p 127.0.0.1:6006:6006 -it --name pbt pbt:latest bash
 # Inside container, run tensorboard and python script
-tensorboard --logdir /pbt/tmp/ --port 6006 --host 0.0.0.0 & python3 /pbt/main.py
+tensorboard --logdir pbt/logs/ --port 6006 --host 0.0.0.0 & python3 pbt/main.py
 ```
