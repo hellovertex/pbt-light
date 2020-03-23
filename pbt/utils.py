@@ -33,7 +33,7 @@ class FP(object):
     # Indices of train_metrics
     INDEX_NUM_EPISODES_METRIC = 0
     INDEX_ENV_STEPS_METRIC = 1
-    INDEX_AVG_RETURN_METRIC = 2
+    INDEX_AVG_RETURN_METRIC = 0
 
 
 def get_tf_env():
@@ -85,8 +85,8 @@ def get_replay_buffer(data_spec):
         max_length=FP.REPLAY_BUFFER_CAPACITY)
 
 
-def get_train_metrics():
+def get_metrics():
     step_metrics = [tf_metrics.NumberOfEpisodes(), tf_metrics.EnvironmentSteps()]
 
-    return step_metrics + [tf_metrics.AverageReturnMetric(batch_size=FP.NUM_PARALLEL_ENVS),
+    return step_metrics, [tf_metrics.AverageReturnMetric(batch_size=FP.NUM_PARALLEL_ENVS),
                            tf_metrics.AverageEpisodeLengthMetric(batch_size=FP.NUM_PARALLEL_ENVS)]

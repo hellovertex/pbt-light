@@ -1,11 +1,10 @@
-
 class Member(object):
-    def __init__(self, agent, replay_buffer, train_metrics):
+    def __init__(self, agent, replay_buffer, step_metrics, train_metrics):
         """ Each Member consists of agent, driver, replay-buffer and metrics """
         self.agent = agent
         self.replay_buffer = replay_buffer
-        self.train_metrics = train_metrics  # assumed to contain step_metrics as well
-
+        self.train_metrics = train_metrics
+        self.step_metrics = step_metrics
         # set lazily in PBTRunner __init__(...)
         self._driver = None
         # set lazily in PBTRunner run_pbt(...)
@@ -81,4 +80,3 @@ class Member(object):
         if self._saved_model is not None:
             print(f'Member {self} already has a saved_model')
         self._saved_model = value
-

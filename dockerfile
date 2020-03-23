@@ -10,7 +10,7 @@ COPY requirements.txt /
 COPY README.md /
 
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements_docker.txt
 
 # Run tensorboard and then main.py when the container launches
 CMD ["sh", "-c", "tensorboard --logdir=/pbt/tmp/ --port 6006 --host 0.0.0.0", "&", "python3", "/pbt/main.py"]

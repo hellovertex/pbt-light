@@ -1,4 +1,4 @@
-from utils import get_tf_env, get_networks, get_tf_ppo_agent, get_replay_buffer, get_train_metrics
+from utils import get_tf_env, get_networks, get_tf_ppo_agent, get_replay_buffer, get_metrics
 from utils import FP
 from typing import Dict
 import member
@@ -13,8 +13,8 @@ def create_members(num_members, tf_env=None):
         actor_net, value_net = get_networks(tf_env, FP.ACTOR_FC_LAYERS, FP.VALUE_FC_LAYERS)
         agent = get_tf_ppo_agent(tf_env, actor_net, value_net, member_id=i, num_epochs=FP.PPO_NUM_EPOCHS)
         replay_buffer = get_replay_buffer(agent.collect_data_spec)
-        train_metrics = get_train_metrics()
-        members.append(member.Member(agent, replay_buffer, train_metrics))
+        step_metrics, train_metrics = get_metrics()
+        members.append(member.Member(agent, replay_buffer, step_metrics=step_metrics, train_metrics=train_metrics))
     return members
 
 

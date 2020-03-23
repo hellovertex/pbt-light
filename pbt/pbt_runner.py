@@ -21,7 +21,8 @@ class PBTRunner(object):
         # add driver for each member that collects trajectories
         for member in population.members:
             member.driver = default_driver(env=self.env, policy=member.agent.collect_policy,
-                                           observers=[member.replay_buffer.add_batch] + member.train_metrics,
+                                           observers=[member.replay_buffer.add_batch] +
+                                                     member.step_metrics + member.train_metrics,
                                            num_episodes=FP.COLLECT_EPISODES_PER_ITERATION)
 
         # initialize lazily in run_pbt(...)
@@ -76,14 +77,21 @@ class PBTRunner(object):
                     member.replay_buffer.clear()
                     train_time += time.time() - start_time
 
-                    # manually update our custom step_counter
+                    # Compute metrics
+                    for train_metric in member.train_metrics:
+                        train_metric.tf_summaries(
+                            train_step=member.agent.step_counter.numpy(), step_metrics=member.step_metrics)
+
+                    # Manually update custom custom step counters
                     member.agent.step_counter.assign_add(member.agent.num_epochs)
                     member.agent.episode_counter.assign_add(1)
+                    # LOGGING
                     if member.agent.episode_counter % self.log_interval == 0:
                         print(f'Training agent {i} in epoch {self._epoch_counter}, '
                               f'Current episode: {member.agent.episode_counter.numpy()}')
                         print(f'step = {member.agent.step_counter.numpy():.2f}, loss = {total_loss:.2f}')
-                        steps_per_sec = (member.agent.step_counter.numpy() - timed_at_step) / (collect_time + train_time)
+                        steps_per_sec = (member.agent.step_counter.numpy() - timed_at_step) / (
+                                    collect_time + train_time)
                         print(f'steps/sec = {steps_per_sec:.2f}')
                         print(f'collect_time = {collect_time:.2f}, train_time = {train_time:.2f}')
 
@@ -140,7 +148,8 @@ class PBTRunner(object):
                 return common.Checkpointer(ckpt_dir=ckpt_dir,
                                            agent=member.agent,
                                            global_step=member.agent.step_counter,
-                                           metrics=metric_utils.MetricsGroup(member.train_metrics, 'train_metrics'))
+                                           metrics=metric_utils.MetricsGroup(
+                                               member.step_metrics + member.train_metrics, 'train_metrics'))
             elif ckpt == 'policy':
                 return common.Checkpointer(ckpt_dir=os.path.join(ckpt_dir, 'policy'),
                                            policy=member.agent.policy,
@@ -152,10 +161,11 @@ class PBTRunner(object):
         # This way it will be easier to restore the best models by simply comparing their numbers
         # on Tensorboard and loading from the corresponding directory
         for i, member in enumerate(self.population.members):
-            train_dir = os.path.join(self.train_dir, f'agent_{i}')
-            eval_dir = os.path.join(self.train_dir, f'agent_{i}')
+            train_dir = os.path.join(os.path.join(self.root_dir, f'agent_{i}'), 'train')
+            # todo run eval_metrics eagerly on separate eval env
+            # eval_dir = os.path.join(os.path.join(self.root_dir, f'agent_{i}'), 'eval')
             member.train_summary_writer = tf.compat.v2.summary.create_file_writer(train_dir, flush_millis=1000)
-            member.eval_summary_writer = tf.compat.v2.summary.create_file_writer(eval_dir, flush_millis=1000)
+            # member.eval_summary_writer = tf.compat.v2.summary.create_file_writer(eval_dir, flush_millis=1000)
             member.train_checkpointer = _create_checkpointer(train_dir, member, ckpt='train')
             member.policy_checkpointer = _create_checkpointer(train_dir, member, ckpt='policy')
             member.saved_model = policy_saver.PolicySaver(member.agent.policy, train_step=member.agent.step_counter)
@@ -166,8 +176,8 @@ class PBTRunner(object):
                 num_env_steps_per_epoch=30,
                 train_checkpoint_interval=50,
                 policy_checkpoint_interval=50,
-                summary_interval=10,
-                log_interval=1):
+                summary_interval=30,
+                log_interval=10):
         """
         Args:
              root_dir: Where /train and /eval will be created that contain Summaries
@@ -178,7 +188,7 @@ class PBTRunner(object):
              summary_interval:
              log_interval:
 
-        Note that all interval values mean the number of training episodes of which a single epoch can have many.
+        Note that XYZ_interval = number of training episodes [of which a single epoch can have many].
         A training episode consists of (collect_episodes * env_steps_per_collect_episode) many transistions.
         However, in the case of the ppo, only 25 (as per default) of the collect_episodes are used for training.
         So we only count 25 collect_episodes per training_episode.
@@ -202,5 +212,3 @@ class PBTRunner(object):
         for i in range(num_epochs):
             self.run_epoch(num_env_steps_per_epoch)
             self._epoch_counter += 1
-
-

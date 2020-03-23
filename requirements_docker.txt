@@ -1,0 +1,3 @@
+# required on top of packages in docker container "tensorflow/tensorflow:2.1.0-py3"
+tf-agents==0.4.0rc0
+gym
