@@ -64,9 +64,9 @@ import gin
 import tensorflow as tf
 
 from tf_agents.agents import tf_agent
-from src import ppo_policy
+from agents.ppo import ppo_policy
 from tf_agents.agents.ppo import ppo_utils
-from src.networks import network
+from tf_agents.networks import network
 from tf_agents.policies import greedy_policy
 from tf_agents.specs import distribution_spec
 from tf_agents.specs import tensor_spec

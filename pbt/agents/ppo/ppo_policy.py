@@ -23,8 +23,8 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 from tf_agents.agents.ppo import ppo_utils
-from src.networks import network
-from src import actor_policy
+from tf_agents.networks import network
+from tf_agents.policies import actor_policy
 from tf_agents.specs import distribution_spec
 from tf_agents.specs import tensor_spec
 from tf_agents.trajectories import policy_step

@@ -4,8 +4,8 @@ import population
 
 POPULATION_SIZE = 10
 NUM_TO_EVOLVE = 3
-NUM_EPOCHS = 1e4
-NUM_ENV_STEPS_PER_EPOCH = 1e6
+NUM_EPOCHS = int(1e4)
+NUM_ENV_STEPS_PER_EPOCH = int(1e6)
 
 
 def main():

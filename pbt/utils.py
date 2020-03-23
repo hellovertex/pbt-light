@@ -5,7 +5,7 @@ from tf_agents.environments import tf_py_environment, parallel_py_environment
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.metrics import tf_metrics
 from tf_agents.networks import actor_distribution_network, value_network
-from tf_agents.environments import test_envs
+from env import test_env
 # project imports
 from agents.ppo import ppo_agent
 
@@ -38,7 +38,7 @@ class FP(object):
 
 def get_tf_env():
     def _load_env():
-        return test_envs.CountingEnv(steps_per_episode=10)
+        return test_env.CountingEnv(steps_per_episode=10)
     tf_env = tf_py_environment.TFPyEnvironment(parallel_py_environment.ParallelPyEnvironment(
         [lambda: _load_env()] * FP.NUM_PARALLEL_ENVS))
     return tf_env
