@@ -5,7 +5,7 @@ from tf_agents.environments import tf_py_environment, parallel_py_environment
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.metrics import tf_metrics
 from tf_agents.networks import actor_distribution_network, value_network
-from env import test_env
+from environments import test_env
 # project imports
 from agents.ppo import ppo_agent
 
