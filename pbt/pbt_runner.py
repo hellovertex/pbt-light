@@ -49,7 +49,7 @@ class PBTRunner(object):
                     self.saved_model_dir, 'policy_' + ('%d' % member.agent.step_counter).zfill(9))
                 member.saved_model.save(saved_model_path)
 
-    def run_training(self, num_environment_steps):
+    def run_training(self, num_environment_steps, use_tf_functions=True):
         """
         Args:
             num_environment_steps: per agent
@@ -57,13 +57,26 @@ class PBTRunner(object):
         # run the collect drivers to fill replay buffer of each model
         for i, member in enumerate(self.population.members):
             member.train_summary_writer.set_as_default()
+            # train_step_counter was initially set in get_agent
+            # and is manually incremented in ppo_agent.train, as required in ABC tf.TfAgent
             with tf.compat.v2.summary.record_if(lambda: tf.math.equal(
-                    member.step_metrics[FP.IDX_ENV_STEPS].result().numpy() % self.summary_interval, 0)
+                    member.agent.train_step_counter % self.summary_interval, 0)
             ):
-                while member.step_metrics[FP.IDX_ENV_STEPS].result().numpy() < num_environment_steps:
+                def train_step():
+                    trajectories = member.replay_buffer.gather_all()
+                    return member.agent.train(experience=trajectories)
+
+                if use_tf_functions:
+                    # todo: Enable once the cause for slowdown was identified.
+                    member.driver.run = common.function(member.driver.run, autograph=False)
+                    member.agent.train = common.function(member.agent.train, autograph=False)
+                    train_step = common.function(train_step)
+
+                timed_at_step = 0
+                while (member.step_metrics[FP.IDX_ENV_STEPS].result().numpy()) < num_environment_steps:
                     collect_time = 0
                     train_time = 0
-                    timed_at_step = member.step_metrics[FP.IDX_ENV_STEPS].result().numpy()
+                    train_step_count = member.agent.train_step_counter.numpy()
 
                     # Collect
                     start_time = time.time()
@@ -72,26 +85,25 @@ class PBTRunner(object):
 
                     # TRAIN
                     start_time = time.time()
-                    trajectories = member.replay_buffer.gather_all()
-                    total_loss, _ = member.agent.train(experience=trajectories)
+                    total_loss, _ = train_step()
                     member.replay_buffer.clear()
                     train_time += time.time() - start_time
 
                     # Compute metrics
                     for train_metric in member.train_metrics:
                         train_metric.tf_summaries(
-                            train_step=member.agent.step_counter.numpy(), step_metrics=member.step_metrics)
+                            train_step=train_step_count, step_metrics=member.step_metrics)
 
                     # LOGGING
-                    if member.agent.episode_counter % self.log_interval == 0:
+                    if train_step_count % self.log_interval == 0:
                         print(f'Training agent {i} in epoch {self._epoch_counter}')
                         print(f'step = '
-                              f'{member.step_metrics[FP.IDX_ENV_STEPS].result().numpy():.2f}, '
+                              f'{train_step_count:.2f}, '
                               f'loss = {total_loss:.2f}')
-                        steps_per_sec = (member.step_metrics[FP.IDX_ENV_STEPS].result().numpy()
-                                         - timed_at_step) / (collect_time + train_time)
+                        steps_per_sec = (train_step_count - timed_at_step) / (collect_time + train_time)
                         print(f'steps/sec = {steps_per_sec:.2f}')
                         print(f'collect_time = {collect_time:.2f}, train_time = {train_time:.2f}')
+                        timed_at_step = train_step_count
 
     def rank_members(self, num_to_evolve):
         # avg_score = member.train_metrics[FP.INDEX_AVG_RETURN_METRIC].result().numpy()
@@ -145,13 +157,13 @@ class PBTRunner(object):
             if ckpt == 'train':
                 return common.Checkpointer(ckpt_dir=ckpt_dir,
                                            agent=member.agent,
-                                           global_step=member.step_metrics[FP.IDX_ENV_STEPS],
+                                           global_step=member.agent.train_step_counter,
                                            metrics=metric_utils.MetricsGroup(
                                                member.step_metrics + member.train_metrics, 'train_metrics'))
             elif ckpt == 'policy':
                 return common.Checkpointer(ckpt_dir=os.path.join(ckpt_dir, 'policy'),
                                            policy=member.agent.policy,
-                                           global_step=member.step_metrics[FP.IDX_ENV_STEPS])
+                                           global_step=member.agent.train_step_counter)
             else:
                 raise ValueError
 
@@ -166,7 +178,8 @@ class PBTRunner(object):
             # member.eval_summary_writer = tf.compat.v2.summary.create_file_writer(eval_dir, flush_millis=1000)
             member.train_checkpointer = _create_checkpointer(train_dir, member, ckpt='train')
             member.policy_checkpointer = _create_checkpointer(train_dir, member, ckpt='policy')
-            member.saved_model = policy_saver.PolicySaver(member.agent.policy, train_step=member.agent.step_counter)
+            member.saved_model = policy_saver.PolicySaver(member.agent.policy, train_step=member.agent.train_step_counter)
+            member.train_checkpointer.initialize_or_restore()
 
     def run_pbt(self,
                 root_dir,

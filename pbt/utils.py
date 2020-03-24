@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.python.framework import dtypes
 import numpy as np
 # tf_agents imports
 from tf_agents.environments import tf_py_environment, parallel_py_environment
@@ -14,7 +15,7 @@ class FP(object):
     """ Param Container so that we can fold them in Pycharm for readability """
     # Training
     NUM_PARALLEL_ENVS = 25
-    COLLECT_EPISODES_PER_ITERATION = 30
+    COLLECT_EPISODES_PER_ITERATION = 50
     # get-functions
     ACTOR_FC_LAYERS = (200, 100)
     VALUE_FC_LAYERS = (200, 100)
@@ -56,6 +57,7 @@ def get_networks(tf_env, actor_fc_layers, value_fc_layers):
 
 
 def get_tf_ppo_agent(tf_env, actor_net, value_net, member_id, num_epochs=25, learning_rate=1e-3):
+    train_step_variable = tf.Variable(initial_value=0, trainable=False, dtype=dtypes.int64)
     tf_agent = ppo_agent.PPOAgent(
         tf_env.time_step_spec(),
         tf_env.action_spec(),
@@ -73,8 +75,8 @@ def get_tf_ppo_agent(tf_env, actor_net, value_net, member_id, num_epochs=25, lea
         num_epochs=num_epochs,
         debug_summaries=False,
         summarize_grads_and_vars=False,
-        train_step_counter=None)
-    tf_agent.initialize()  # check if this is necessary
+        train_step_counter=train_step_variable)
+    tf_agent.initialize()
     return tf_agent
 
 
@@ -87,6 +89,6 @@ def get_replay_buffer(data_spec):
 
 def get_metrics():
     step_metrics = [tf_metrics.NumberOfEpisodes(), tf_metrics.EnvironmentSteps()]
-
-    return step_metrics, [tf_metrics.AverageReturnMetric(batch_size=FP.NUM_PARALLEL_ENVS),
+    train_metrics = [tf_metrics.AverageReturnMetric(batch_size=FP.NUM_PARALLEL_ENVS),
                            tf_metrics.AverageEpisodeLengthMetric(batch_size=FP.NUM_PARALLEL_ENVS)]
+    return step_metrics, train_metrics

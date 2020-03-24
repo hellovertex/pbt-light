@@ -707,6 +707,8 @@ class PPOAgent(tf_agent.TFAgent):
                         data=var,
                         step=self.train_step_counter)
 
+        self.train_step_counter.assign_add(self._num_epochs)
+
         return loss_info
 
     def l2_regularization_loss(self, debug_summaries=False):
