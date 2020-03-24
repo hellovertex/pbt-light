@@ -61,7 +61,6 @@ def get_tf_ppo_agent(tf_env, actor_net, value_net, member_id, num_epochs=25, lea
     tf_agent = ppo_agent.PPOAgent(
         tf_env.time_step_spec(),
         tf_env.action_spec(),
-        member_id=member_id,
         optimizer=tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate),
         actor_net=actor_net,
         value_net=value_net,
@@ -75,7 +74,7 @@ def get_tf_ppo_agent(tf_env, actor_net, value_net, member_id, num_epochs=25, lea
         num_epochs=num_epochs,
         debug_summaries=False,
         summarize_grads_and_vars=False,
-        train_step_counter=train_step_variable)
+        train_step_counter=None)
     tf_agent.initialize()
     return tf_agent
 

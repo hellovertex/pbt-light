@@ -38,17 +38,6 @@ class PBTRunner(object):
         self.summary_interval = None
         self.log_interval = None
 
-    def maybe_save_models(self):
-        """ Helper function that checks for logging intervals """
-        for member in self.population.members:
-            if member.agent.episode_counter % self.train_checkpoint_interval == 0:
-                member.train_checkpointer.save(global_step=member.agent.step_counter)
-            if member.agent.episode_counter % self.policy_checkpoint_interval == 0:
-                member.policy_checkpointer.save(global_step=member.agent.step_counter)
-                saved_model_path = os.path.join(
-                    self.saved_model_dir, 'policy_' + ('%d' % member.agent.step_counter).zfill(9))
-                member.saved_model.save(saved_model_path)
-
     def run_training(self, num_environment_steps, use_tf_functions=True):
         """
         Args:
@@ -56,12 +45,15 @@ class PBTRunner(object):
         """
         # run the collect drivers to fill replay buffer of each model
         for i, member in enumerate(self.population.members):
+            print("BEFORE SETTING SUMMARY WRITER")
             member.train_summary_writer.set_as_default()
-            # train_step_counter was initially set in get_agent
+            print("AFTER SETTING SUMMARY WRITER")# train_step_counter was initially set in get_agent
             # and is manually incremented in ppo_agent.train, as required in ABC tf.TfAgent
+            print("BEFORE SETTING CONTEXT MANAGER")
             with tf.compat.v2.summary.record_if(lambda: tf.math.equal(
                     member.agent.train_step_counter % self.summary_interval, 0)
             ):
+                print("After SETTING CONTEXT MANAGER")
                 def train_step():
                     trajectories = member.replay_buffer.gather_all()
                     return member.agent.train(experience=trajectories)
@@ -73,7 +65,7 @@ class PBTRunner(object):
                     train_step = common.function(train_step)
 
                 timed_at_step = 0
-                while (member.step_metrics[FP.IDX_ENV_STEPS].result().numpy()) < num_environment_steps:
+                while (member.step_metrics[FP.IDX_ENV_STEPS].result().numpy()) < num_environment_steps * self._epoch_counter:
                     collect_time = 0
                     train_time = 0
                     train_step_count = member.agent.train_step_counter.numpy()
@@ -181,6 +173,17 @@ class PBTRunner(object):
             member.saved_model = policy_saver.PolicySaver(member.agent.policy, train_step=member.agent.train_step_counter)
             member.train_checkpointer.initialize_or_restore()
 
+    def maybe_save_models(self):
+        """ Helper function that checks for logging intervals """
+        for member in self.population.members:
+            if member.agent.train_step_counter % self.train_checkpoint_interval == 0:
+                member.train_checkpointer.save(global_step=member.agent.train_step_counter)
+            if member.agent.train_step_counter % self.policy_checkpoint_interval == 0:
+                member.policy_checkpointer.save(global_step=member.agent.train_step_counter)
+                saved_model_path = os.path.join(
+                    self.saved_model_dir, 'policy_' + ('%d' % member.agent.train_step_counter).zfill(9))
+                member.saved_model.save(saved_model_path)
+
     def run_pbt(self,
                 root_dir,
                 num_epochs,
@@ -211,5 +214,6 @@ class PBTRunner(object):
 
         # run population based training
         for i in range(num_epochs):
-            self.run_epoch(num_env_steps_per_epoch)
             self._epoch_counter += 1
+            self.run_epoch(num_env_steps_per_epoch)
+

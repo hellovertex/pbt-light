@@ -100,7 +100,6 @@ class PPOAgent(tf_agent.TFAgent):
     def __init__(self,
                  time_step_spec,
                  action_spec,
-                 member_id,
                  optimizer=None,
                  actor_net=None,
                  value_net=None,
@@ -216,8 +215,7 @@ class PPOAgent(tf_agent.TFAgent):
         self._gradient_clipping = gradient_clipping or 0.0
         self._check_numerics = check_numerics
         # added manually to avoid writing to global step
-        self._step_counter = tf.Variable(0, name=f'step_ppo_{member_id}')  # new train_step counter for metrics
-        self._episode_counter = tf.Variable(0, name=f'episode_ppo_{member_id}')  # env_step_counter for logging
+        self._episode_counter = tf.Variable(0, trainable=False)
 
         if initial_adaptive_kl_beta > 0.0:
             # TODO(kbanoop): Rename create_variable.
@@ -322,20 +320,9 @@ class PPOAgent(tf_agent.TFAgent):
         return self._actor_net
 
     @property
-    def step_counter(self):
-        return self._step_counter
-
-    @step_counter.setter
-    def step_counter(self, value):
-        self._step_counter.assign_add(value)
-
-    @property
     def episode_counter(self):
         return self._episode_counter
 
-    @episode_counter.setter
-    def episode_counter(self, value):
-        self._episode_counter.assign_add(value)
 
     def _initialize(self):
         pass
@@ -708,6 +695,7 @@ class PPOAgent(tf_agent.TFAgent):
                         step=self.train_step_counter)
 
         self.train_step_counter.assign_add(self._num_epochs)
+        self._episode_counter.assign_add(1)
 
         return loss_info
 
