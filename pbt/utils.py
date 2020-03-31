@@ -58,6 +58,7 @@ def get_networks(tf_env, actor_fc_layers, value_fc_layers):
 
 def get_tf_ppo_agent(tf_env, actor_net, value_net, member_id, num_epochs=25, learning_rate=1e-3):
     train_step_variable = tf.Variable(initial_value=0, trainable=False, dtype=dtypes.int64)
+    name = f'PPOAgent_{member_id}'
     tf_agent = ppo_agent.PPOAgent(
         tf_env.time_step_spec(),
         tf_env.action_spec(),
@@ -72,9 +73,10 @@ def get_tf_ppo_agent(tf_env, actor_net, value_net, member_id, num_epochs=25, lea
         normalize_rewards=False,
         use_gae=True,
         num_epochs=num_epochs,
-        debug_summaries=False,
+        debug_summaries=True,
         summarize_grads_and_vars=False,
-        train_step_counter=None)
+        train_step_counter=train_step_variable,
+        name=name)
     tf_agent.initialize()
     return tf_agent
 

@@ -5,10 +5,10 @@ import population
 
 root_dir = str(os.path.dirname(__file__)) + '/logs/'
 
-POPULATION_SIZE = 10
-NUM_TO_EVOLVE = 3
+POPULATION_SIZE = 3
+NUM_TO_EVOLVE = 1
 NUM_EPOCHS = int(1e5)
-NUM_ENV_STEPS_PER_EPOCH = int(1e4)
+NUM_ENV_STEPS_PER_EPOCH = int(1e3)
 
 
 def main():

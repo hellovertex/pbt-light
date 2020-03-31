@@ -641,6 +641,7 @@ class PPOAgent(tf_agent.TFAgent):
         # Make summaries for total loss averaged across all epochs.
         # The *_losses lists will have been populated by
         #   calls to self.get_epoch_loss. Assumes all the losses have same length.
+        #with tf.name_scope(f'Losses_{self._name}/'):
         with tf.name_scope('Losses/'):
             num_epochs = len(policy_gradient_losses)
             total_policy_gradient_loss = tf.add_n(policy_gradient_losses) / num_epochs
